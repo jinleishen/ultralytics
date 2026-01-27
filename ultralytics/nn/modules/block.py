@@ -37,6 +37,7 @@ __all__ = (
     "C2fPSA",
     "C3Ghost",
     "C3k2",
+    "C3k2Ghost"
     "C3x",
     "CBFuse",
     "CBLinear",
@@ -52,6 +53,10 @@ __all__ = (
     "ResNetLayer",
     "SCDown",
     "TorchVision",
+    "FEM",
+    "FEMConv",
+    "FEMCBS",
+    "LPA",
 )
 
 
@@ -1104,7 +1109,25 @@ class C3k2(C2f):
             else Bottleneck(self.c, self.c, shortcut, g)
             for _ in range(n)
         )
+class C3k2Ghost(C2f):
+    """Faster Implementation of CSP Bottleneck with 2 convolutions."""
 
+    def __init__(self, c1, c2, n=1, c3k=False, e=0.5, g=1, shortcut=True):
+        """Initializes the C3k2 module, a faster CSP Bottleneck with 2 convolutions and optional C3k blocks."""
+        super().__init__(c1, c2, n, shortcut, g, e)
+        self.m = nn.ModuleList(
+            C3kGhost(self.c, self.c, 2, shortcut, g) if c3k else GhostBottleneck(self.c, self.c) for _ in range(n)
+        )
+
+class C3kGhost(C3):
+    """C3k is a CSP bottleneck module with customizable kernel sizes for feature extraction in neural networks."""
+
+    def __init__(self, c1, c2, n=1, shortcut=True, g=1, e=0.5, k=3):
+        """Initializes the C3k module with specified channels, number of layers, and configurations."""
+        super().__init__(c1, c2, n, shortcut, g, e)
+        c_ = int(c2 * e)  # hidden channels
+        # self.m = nn.Sequential(*(RepBottleneck(c_, c_, shortcut, g, k=(k, k), e=1.0) for _ in range(n)))
+        self.m = nn.Sequential(*(GhostBottleneck(c_, c_) for _ in range(n)))
 
 class C3k(C3):
     """C3k is a CSP bottleneck module with customizable kernel sizes for feature extraction in neural networks."""
@@ -1125,6 +1148,7 @@ class C3k(C3):
         c_ = int(c2 * e)  # hidden channels
         # self.m = nn.Sequential(*(RepBottleneck(c_, c_, shortcut, g, k=(k, k), e=1.0) for _ in range(n)))
         self.m = nn.Sequential(*(Bottleneck(c_, c_, shortcut, g, k=(k, k), e=1.0) for _ in range(n)))
+
 
 
 class RepVGGDW(torch.nn.Module):
@@ -2065,3 +2089,201 @@ class RealNVP(nn.Module):
             self.float()
         z, log_det = self.backward_p(x)
         return self.prior.log_prob(z) + log_det
+
+class FEMCBS(nn.Module):
+    def __init__(self, in_planes, out_planes, stride=1, scale=0.1, map_reduce=8):
+        super(FEMCBS, self).__init__()
+        self.scale = scale
+        self.out_channels = out_planes
+        inter_planes = in_planes // map_reduce
+        self.branch0 = nn.Sequential(
+            Conv(in_planes, 2 * inter_planes, 1, stride),
+            Conv(2 * inter_planes, 2 * inter_planes, 3, 1, 1, act=False)
+        )
+        self.branch1 = nn.Sequential(
+            Conv(in_planes, inter_planes, 1, 1),
+            Conv(inter_planes, (inter_planes // 2) * 3, (1, 3), stride, (0, 1)),
+            Conv((inter_planes // 2) * 3, 2 * inter_planes, (3, 1), stride, (1, 0)),
+            Conv(2 * inter_planes, 2 * inter_planes, 3, 1, 5, d=5, act=False)
+        )
+        self.branch2 = nn.Sequential(
+            Conv(in_planes, inter_planes, 1, 1),
+            Conv(inter_planes, (inter_planes // 2) * 3, (3, 1), stride, (1, 0)),
+            Conv((inter_planes // 2) * 3, 2 * inter_planes, (1, 3), stride, (0, 1)),
+            Conv(2 * inter_planes, 2 * inter_planes, 3, 1, 5, d=5, act=False)
+        )
+
+        self.ConvLinear = Conv(6 * inter_planes, out_planes, 1, 1, act=False)
+        self.shortcut = Conv(in_planes, out_planes, 1, stride, act=False)
+        self.silu = nn.SiLU(inplace=False)
+
+    def forward(self, x):
+        x0 = self.branch0(x)
+        x1 = self.branch1(x)
+        x2 = self.branch2(x)
+
+        out = torch.cat((x0, x1, x2), 1)
+        out = self.ConvLinear(out)
+        short = self.shortcut(x)
+        out = out * self.scale + short
+        out = self.silu(out)
+
+        return out
+    
+class FEMConv(nn.Module):
+    def __init__(self, in_planes, out_planes, stride=1, scale=0.1, map_reduce=8):
+        super(FEMConv, self).__init__()
+        self.scale = scale
+        self.out_channels = out_planes
+        inter_planes = in_planes // map_reduce
+        self.branch0 = nn.Sequential(
+            Conv(in_planes, 2 * inter_planes, 1, stride),
+            Conv(2 * inter_planes, 2 * inter_planes, 3, 1, 1, act=False)
+        )
+        self.branch1 = nn.Sequential(
+            Conv(in_planes, inter_planes, 1, 1),
+            Conv(inter_planes, (inter_planes // 2) * 3, (1, 3), stride, (0, 1)),
+            Conv((inter_planes // 2) * 3, 2 * inter_planes, (3, 1), stride, (1, 0)),
+            Conv(2 * inter_planes, 2 * inter_planes, 3, 1, 5, d=5, act=False)
+        )
+        self.branch2 = nn.Sequential(
+            Conv(in_planes, inter_planes, 1, 1),
+            Conv(inter_planes, (inter_planes // 2) * 3, (3, 1), stride, (1, 0)),
+            Conv((inter_planes // 2) * 3, 2 * inter_planes, (1, 3), stride, (0, 1)),
+            Conv(2 * inter_planes, 2 * inter_planes, 3, 1, 5, d=5, act=False)
+        )
+
+        self.ConvLinear = Conv(6 * inter_planes, out_planes, 1, 1, act=False)
+        self.shortcut = Conv(in_planes, out_planes, 1, stride, act=False)
+        self.silu = nn.SiLU(inplace=False)
+
+    def forward(self, x):
+        x0 = self.branch0(x)
+        x1 = self.branch1(x)
+        x2 = self.branch2(x)
+
+        out = torch.cat((x0, x1, x2), 1)
+        out = self.ConvLinear(out)
+        short = self.shortcut(x)
+        out = out * self.scale + short
+        out = self.silu(out)
+
+        return out
+    
+class FEM(nn.Module):
+    def __init__(self, in_planes, out_planes, stride=1, scale=0.1, map_reduce=8):
+        super(FEM, self).__init__()
+        self.scale = scale
+        self.out_channels = out_planes
+        inter_planes = in_planes // map_reduce
+        self.branch0 = nn.Sequential(
+            BasicConv(in_planes, 2 * inter_planes, kernel_size=1, stride=stride),
+            BasicConv(2 * inter_planes, 2 * inter_planes, kernel_size=3, stride=1, padding=1, relu=False)
+        )
+        self.branch1 = nn.Sequential(
+            BasicConv(in_planes, inter_planes, kernel_size=1, stride=1),
+            BasicConv(inter_planes, (inter_planes // 2) * 3, kernel_size=(1, 3), stride=stride, padding=(0, 1)),
+            BasicConv((inter_planes // 2) * 3, 2 * inter_planes, kernel_size=(3, 1), stride=stride, padding=(1, 0)),
+            BasicConv(2 * inter_planes, 2 * inter_planes, kernel_size=3, stride=1, padding=5, dilation=5, relu=False)
+        )
+        self.branch2 = nn.Sequential(
+            BasicConv(in_planes, inter_planes, kernel_size=1, stride=1),
+            BasicConv(inter_planes, (inter_planes // 2) * 3, kernel_size=(3, 1), stride=stride, padding=(1, 0)),
+            BasicConv((inter_planes // 2) * 3, 2 * inter_planes, kernel_size=(1, 3), stride=stride, padding=(0, 1)),
+            BasicConv(2 * inter_planes, 2 * inter_planes, kernel_size=3, stride=1, padding=5, dilation=5, relu=False)
+        )
+
+        self.ConvLinear = BasicConv(6 * inter_planes, out_planes, kernel_size=1, stride=1, relu=False)
+        self.shortcut = BasicConv(in_planes, out_planes, kernel_size=1, stride=stride, relu=False)
+        self.relu = nn.ReLU(inplace=False)
+
+    def forward(self, x):
+        x0 = self.branch0(x)
+        x1 = self.branch1(x)
+        x2 = self.branch2(x)
+
+        out = torch.cat((x0, x1, x2), 1)
+        out = self.ConvLinear(out)
+        short = self.shortcut(x)
+        out = out * self.scale + short
+        out = self.relu(out)
+
+        return out
+
+class BasicConv(nn.Module):
+    def __init__(self, in_planes, out_planes, kernel_size, stride=1, padding=0, dilation=1, groups=1, relu=True,
+                 bn=True, bias=False):
+        super(BasicConv, self).__init__()
+        self.out_channels = out_planes
+        self.conv = nn.Conv2d(in_planes, out_planes, kernel_size=kernel_size, stride=stride, padding=padding,
+                              dilation=dilation, groups=groups, bias=bias)
+        self.bn = nn.BatchNorm2d(out_planes, eps=1e-5, momentum=0.01, affine=True) if bn else None
+        self.relu = nn.ReLU(inplace=True) if relu else None
+
+    def forward(self, x):
+        x = self.conv(x)
+        if self.bn is not None:
+            x = self.bn(x)
+        if self.relu is not None:
+            x = self.relu(x)
+        return x
+
+class ChannelAttention(nn.Module):
+    def __init__(self, in_planes):
+        super(ChannelAttention, self).__init__()
+        self.avg_pool = nn.AdaptiveAvgPool2d(1)
+        self.max_pool = nn.AdaptiveMaxPool2d(1)
+
+        self.fc1 = nn.Conv2d(in_planes, in_planes // 8, 1, bias=False)
+        self.relu1 = nn.ReLU()
+        self.fc2 = nn.Conv2d(in_planes // 8, in_planes, 1, bias=False)
+
+        self.sigmoid = nn.Sigmoid()
+
+    def forward(self, x):
+        avg_out = self.fc2(self.relu1(self.fc1(self.avg_pool(x))))
+        max_out = self.fc2(self.relu1(self.fc1(self.max_pool(x))))
+        out = avg_out + max_out
+        return self.sigmoid(out)
+
+class SpatialAttention(nn.Module):
+    def __init__(self, kernel_size=3):
+        super(SpatialAttention, self).__init__()
+
+        assert kernel_size in (3, 7), 'kernel size must be 3 or 7'
+        padding = 3 if kernel_size == 7 else 1
+
+        self.conv1 = nn.Conv2d(2, 1, kernel_size, padding=padding, bias=False)
+        self.sigmoid = nn.Sigmoid()
+
+    def forward(self, x):
+        avg_out = torch.mean(x, dim=1, keepdim=True)
+        max_out, _ = torch.max(x, dim=1, keepdim=True)
+        x = torch.cat([avg_out, max_out], dim=1)
+        x = self.conv1(x)
+        return self.sigmoid(x)
+
+class LPA(nn.Module):
+    def __init__(self, in_channel):
+        super(LPA, self).__init__()
+        self.ca = ChannelAttention(in_channel)
+        self.sa = SpatialAttention()
+
+    def forward(self, x):
+        x0, x1 = x.chunk(2, dim=2)
+        x0 = x0.chunk(2, dim=3)
+        x1 = x1.chunk(2, dim=3)
+        x0 = [self.ca(x0[-2]) * x0[-2], self.ca(x0[-1]) * x0[-1]]
+        x0 = [self.sa(x0[-2]) * x0[-2], self.sa(x0[-1]) * x0[-1]]
+
+        x1 = [self.ca(x1[-2]) * x1[-2], self.ca(x1[-1]) * x1[-1]]
+        x1 = [self.sa(x1[-2]) * x1[-2], self.sa(x1[-1]) * x1[-1]]
+
+        x0 = torch.cat(x0, dim=3)
+        x1 = torch.cat(x1, dim=3)
+        x3 = torch.cat((x0, x1), dim=2)
+
+        x4 = self.ca(x) * x
+        x4 = self.sa(x4) * x4
+        x = x3 + x4
+        return x
