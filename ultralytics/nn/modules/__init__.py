@@ -42,6 +42,7 @@ from .block import (
     C2fPSA,
     C3Ghost,
     C3k2,
+    C3k2Ghost,
     C3x,
     CBFuse,
     CBLinear,
@@ -56,6 +57,10 @@ from .block import (
     RepVGGDW,
     ResNetLayer,
     SCDown,
+    FEM,
+    FEMConv,
+    FEMCBS,
+    LPA,
 )
 from .conv import (
     CBAM,
@@ -114,6 +119,7 @@ __all__ = (
     "C3",
     "C2f",
     "C3k2",
+    "C3k2Ghost",
     "SCDown",
     "C2fPSA",
     "C2PSA",
@@ -156,4 +162,8 @@ __all__ = (
     "C2fCIB",
     "Attention",
     "PSA",
+    "FEM",
+    "FEMConv",
+    "FEMCBS",
+    "LPA",
 )
