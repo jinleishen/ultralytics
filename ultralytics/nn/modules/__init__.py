@@ -71,7 +71,6 @@ from .IEMA import Inception_EMA
 from .MFAM import PKIModule_2
 from .CFYOLO import SRAM10, MBD2
 from .GMGblock import GMGblock, C3k2_GMG
-from .LDefmambablock import LDefmambablock
 from .CARAFE import CARAFE
 from .FlexSimAM import FlexSimAM
 from .S2DResConv import S2DResConv
@@ -215,7 +214,6 @@ __all__ = (
     "MBD2",
     "GMGblock",
     "C3k2_GMG",
-    "LDefmambablock",
     "CARAFE",
     "FlexSimAM",
     "S2DResConv",
