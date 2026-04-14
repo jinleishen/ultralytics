@@ -70,6 +70,8 @@ from .DASI import Res_DASI
 from .IEMA import Inception_EMA
 from .MFAM import PKIModule_2
 from .CFYOLO import SRAM10, MBD2
+from .GMGblock import GMGblock, C3k2_GMG
+from .LDefmambablock import LDefmambablock
 from .conv import (
     CBAM,
     ChannelAttention,
@@ -208,4 +210,7 @@ __all__ = (
     "Res_DASI",
     "SRAM10",
     "MBD2",
+    "GMGblock",
+    "C3k2_GMG",
+    "LDefmambablock",
 )
