@@ -69,6 +69,7 @@ from .block import (
 from .DASI import Res_DASI
 from .IEMA import Inception_EMA
 from .MFAM import PKIModule_2
+from .CFYOLO import SRAM10, MBD2
 from .conv import (
     CBAM,
     ChannelAttention,
@@ -205,4 +206,6 @@ __all__ = (
     "PKIModule_2",
     "Inception_EMA",
     "Res_DASI",
+    "SRAM10",
+    "MBD2",
 )

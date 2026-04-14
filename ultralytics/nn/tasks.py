@@ -80,6 +80,8 @@ from ultralytics.nn.modules import (
     Inception_EMA,
     Res_DASI,
     MASFUpsample,
+    SRAM10,
+    MBD2,
 )
 from ultralytics.utils import DEFAULT_CFG_DICT, LOGGER, YAML, colorstr, emojis
 from ultralytics.utils.checks import check_requirements, check_suffix, check_yaml
@@ -1719,6 +1721,14 @@ def parse_model(d, ch, verbose=True):
             c2 = c1
             args = [c1]
         elif m is MASFUpsample:
+            c1, c2 = ch[f], args[0]
+            if c2 != nc:
+                c2 = make_divisible(min(c2, max_channels) * width, 8)
+            args = [c1, c2]
+        elif m is SRAM10:
+            args = [ch[f], *args]
+            c2 = ch[f]
+        elif m is MBD2:
             c1, c2 = ch[f], args[0]
             if c2 != nc:
                 c2 = make_divisible(min(c2, max_channels) * width, 8)
