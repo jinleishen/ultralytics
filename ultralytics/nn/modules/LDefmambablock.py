@@ -1,7 +1,11 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from einops import rearrange, repeat
+try:
+    from einops import rearrange, repeat
+except ImportError:
+    rearrange = None
+    repeat = None
 import math
 from functools import partial
 from typing import Optional, Union, List, Dict, Callable, Tuple
@@ -12,9 +16,17 @@ try:
     import selective_scan_cuda_core
     import selective_scan_cuda_oflex
     import selective_scan_cuda_ndstate
-
+    _SELECTIVE_SCAN_AVAILABLE = True
 except ImportError:
-    raise ImportError("error!can't find selective_scan_cuda_core or selective_scan_cuda_oflex")
+    _SELECTIVE_SCAN_AVAILABLE = False
+    selective_scan_cuda_core = None
+    selective_scan_cuda_oflex = None
+    selective_scan_cuda_ndstate = None
+    import warnings
+    warnings.warn(
+        "selective_scan CUDA extensions not found. LDefmambablock will fail at runtime. "
+        "Install from: https://github.com/MzeroMiko/VMamba/tree/main/kernels/selective_scan"
+    )
 
 
 # 选择性扫描核心实现（保持不变）
