@@ -2263,6 +2263,20 @@ class SpatialAttention(nn.Module):
         x = self.conv1(x)
         return self.sigmoid(x)
 
+class MASFUpsample(nn.Module):
+    """MASF-YOLO custom upsample: Conv(1x1) + bilinear upsample."""
+
+    def __init__(self, in_channels, out_channels, scale_factor=2):
+        super().__init__()
+        self.upsample = nn.Sequential(
+            Conv(in_channels, out_channels, 1),
+            nn.Upsample(scale_factor=scale_factor, mode="bilinear"),
+        )
+
+    def forward(self, x):
+        return self.upsample(x)
+
+
 class LPA(nn.Module):
     def __init__(self, in_channel):
         super(LPA, self).__init__()

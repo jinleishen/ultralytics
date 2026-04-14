@@ -33,14 +33,14 @@ backbone:
 # YOLO11n head
 head:
   # p4与p5、p3融合
-  - [-1, 1, Upsample, [512]]
+  - [-1, 1, MASFUpsample, [512]]
   - [6, 1, Conv, [512, 3, 2]]
   - [[-1, 9, -2], 1, DASI, []]
   - [-1, 2, C3k2, [512, False]]
   - [-1, 1, Inception_EMA, [512]] # 19
   
     # p3与p4、p2融合
-  - [-1, 1, Upsample, [512]]
+  - [-1, 1, MASFUpsample, [512]]
   - [3, 1, Conv, [512, 3, 2]]
   - [[-1, 6, -2], 1, DASI, []]
   - [-1, 2, C3k2, [256,False]]

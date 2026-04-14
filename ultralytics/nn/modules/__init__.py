@@ -64,7 +64,11 @@ from .block import (
     FEMConv,
     FEMCBS,
     LPA,
+    MASFUpsample,
 )
+from .DASI import Res_DASI
+from .IEMA import Inception_EMA
+from .MFAM import PKIModule_2
 from .conv import (
     CBAM,
     ChannelAttention,
@@ -197,4 +201,8 @@ __all__ = (
     "FEMConv",
     "FEMCBS",
     "LPA",
+    "MASFUpsample",
+    "PKIModule_2",
+    "Inception_EMA",
+    "Res_DASI",
 )

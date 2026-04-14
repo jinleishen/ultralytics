@@ -76,6 +76,10 @@ from ultralytics.nn.modules import (
     FEM,
     FEMConv,
     FEMCBS,
+    PKIModule_2,
+    Inception_EMA,
+    Res_DASI,
+    MASFUpsample,
 )
 from ultralytics.utils import DEFAULT_CFG_DICT, LOGGER, YAML, colorstr, emojis
 from ultralytics.utils.checks import check_requirements, check_suffix, check_yaml
@@ -1701,6 +1705,23 @@ def parse_model(d, ch, verbose=True):
         elif m in {FEM, FEMConv, FEMCBS}:
             c1 = ch[f]
             c2 = c1
+            args = [c1, c2]
+        elif m is PKIModule_2:
+            c1, c2 = ch[f], args[0]
+            if c2 != nc:
+                c2 = make_divisible(min(c2, max_channels) * width, 8)
+            args = [c1, c2]
+        elif m is Inception_EMA:
+            c2 = ch[f]
+            args = [c2]
+        elif m is Res_DASI:
+            c1 = ch[f[1]]
+            c2 = c1
+            args = [c1]
+        elif m is MASFUpsample:
+            c1, c2 = ch[f], args[0]
+            if c2 != nc:
+                c2 = make_divisible(min(c2, max_channels) * width, 8)
             args = [c1, c2]
         else:
             c2 = ch[f]
