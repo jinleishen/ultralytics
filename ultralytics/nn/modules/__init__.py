@@ -72,6 +72,9 @@ from .MFAM import PKIModule_2
 from .CFYOLO import SRAM10, MBD2
 from .GMGblock import GMGblock, C3k2_GMG
 from .LDefmambablock import LDefmambablock
+from .CARAFE import CARAFE
+from .FlexSimAM import FlexSimAM
+from .S2DResConv import S2DResConv
 from .conv import (
     CBAM,
     ChannelAttention,
@@ -213,4 +216,7 @@ __all__ = (
     "GMGblock",
     "C3k2_GMG",
     "LDefmambablock",
+    "CARAFE",
+    "FlexSimAM",
+    "S2DResConv",
 )

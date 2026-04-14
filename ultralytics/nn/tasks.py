@@ -85,6 +85,9 @@ from ultralytics.nn.modules import (
     GMGblock,
     C3k2_GMG,
     LDefmambablock,
+    CARAFE,
+    FlexSimAM,
+    S2DResConv,
 )
 from ultralytics.utils import DEFAULT_CFG_DICT, LOGGER, YAML, colorstr, emojis
 from ultralytics.utils.checks import check_requirements, check_suffix, check_yaml
@@ -1604,6 +1607,8 @@ def parse_model(d, ch, verbose=True):
             GMGblock,
             LDefmambablock,
             C3k2_GMG,
+            S2DResConv,
+            FlexSimAM,
         }
     )
     repeat_modules = frozenset(  # modules with 'repeat' arguments
@@ -1624,6 +1629,7 @@ def parse_model(d, ch, verbose=True):
             C2PSA,
             A2C2f,
             C3k2_GMG,
+            FlexSimAM,
         }
     )
     for i, (f, n, m, args) in enumerate(d["backbone"] + d["head"]):  # from, number, module, args
@@ -1740,6 +1746,9 @@ def parse_model(d, ch, verbose=True):
             if c2 != nc:
                 c2 = make_divisible(min(c2, max_channels) * width, 8)
             args = [c1, c2]
+        elif m is CARAFE:
+            c2 = ch[f]
+            args = [c2]
         else:
             c2 = ch[f]
 

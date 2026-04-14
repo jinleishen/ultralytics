@@ -1,0 +1,49 @@
+# Parameters
+nc: 10 # number of classes
+scales: # model compound scaling constants
+  # [depth, width, max_channels]
+  n: [0.50, 0.25, 1024]
+  s: [0.50, 0.50, 1024]
+  m: [0.50, 1.00, 512]
+  l: [1.00, 1.00, 512]
+  x: [1.00, 1.50, 512]
+
+# YOLO11n backbone
+backbone:
+  # [from, repeats, module, args]
+  - [-1, 1, S2DResConv, [64, 3]] # 0-P1/2
+  - [-1, 1, S2DResConv, [128, 3]] # 1-P2/4
+  - [-1, 2, FlexSimAM, [256, True, 0.25]]
+  - [-1, 1, S2DResConv, [256, 3]] # 3-P3/8
+  - [-1, 2, FlexSimAM, [512, True, 0.25]]
+  - [-1, 1, S2DResConv, [512, 3]] # 5-P4/16
+  - [-1, 2, FlexSimAM, [512, True]]
+  - [-1, 1, SPPF, [512, 5]] # 7
+  - [-1, 2, C2PSA, [512]] # 8
+
+# YOLO11n head
+head:
+  - [-1, 1, Conv, [256, 1, 1]] # 9
+  - [4, 1, Conv, [256, 3, 2]] # 10
+  - [[-1, 9], 1, Concat, [1]] # 11
+  - [-1, 2, FlexSimAM, [256, True]] # 12
+
+  - [-1, 1, CARAFE, []] # 13
+  - [2, 1, Conv, [128, 3, 2]] # 14
+  - [[-1, 4, 13], 1, Concat, [1]] # cat backbone P4
+  - [-1, 2, FlexSimAM, [256, True]] # 16
+
+  - [-1, 1, CARAFE, []]
+  - [[-1, 2], 1, Concat, [1]] # cat backbone P3
+  - [-1, 2, FlexSimAM, [128, True]] # 19 (P2/8-xsmall)
+
+  - [-1, 1, Conv, [128, 3, 2]]
+  - [[-1, 16], 1, Concat, [1]] # cat head P4
+  - [-1, 2, FlexSimAM, [256, True]] # 22 (P3/16-small)
+
+  - [16, 1, Conv, [128, 3, 2]]
+  - [22, 1, Conv, [128, 3, 2]]
+  - [[12, 23, -1], 1, Concat, [1]] # cat head P5
+  - [-1, 2, FlexSimAM, [512, True]] # 26 (P4/32-medium)
+
+  - [[19, 22, 26], 1, Detect, [nc]] # Detect(P2, P3, P4)
